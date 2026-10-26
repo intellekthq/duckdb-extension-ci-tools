@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 
 	"github.com/duckdb/extension-ci-tools/internal/distmatrix"
@@ -16,6 +15,7 @@ func newMatrixCommand() *cobra.Command {
 		archsRaw         string
 		excludeRaw       string
 		optInRaw         string
+		runnerJSON       string
 		reducedCIModeRaw string
 		outPath          string
 		deployOnly       bool
@@ -26,16 +26,16 @@ func newMatrixCommand() *cobra.Command {
 		Short: "Compute distribution matrices and emit GitHub output lines",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if eventPath := os.Getenv("GITHUB_EVENT_PATH"); eventPath != "" {
-				slog.Info("Using GitHub event payload file", "event_path", eventPath)
+				commandLogger(cmd).Info("Using GitHub event payload file", "event_path", eventPath)
 			} else {
-				slog.Info("GITHUB_EVENT_PATH is not set so event type is unknown")
+				commandLogger(cmd).Info("GITHUB_EVENT_PATH is not set so event type is unknown")
 			}
 
 			eventType, err := detectGitHubEventTypeFromEnv()
 			if err != nil {
 				return fmt.Errorf("detect GitHub event type: %w", err)
 			}
-			slog.Info("Detected GitHub event type", "event_type", eventType)
+			commandLogger(cmd).Info("Detected GitHub event type", "event_type", eventType)
 
 			reducedCIMode, err := distmatrix.ParseReducedCIMode(reducedCIModeRaw)
 			if err != nil {
@@ -43,7 +43,7 @@ func newMatrixCommand() *cobra.Command {
 			}
 			if eventType == githubEventPullRequest && reducedCIMode == distmatrix.ReducedCIAuto {
 				reducedCIMode = distmatrix.ReducedCIEnabled
-				slog.Info("Enabled reduced CI mode for pull_request event when mode is auto")
+				commandLogger(cmd).Info("Enabled reduced CI mode for pull_request event when mode is auto")
 			}
 
 			data, err := os.ReadFile(inputPath)
@@ -61,6 +61,7 @@ func newMatrixCommand() *cobra.Command {
 				Exclude:       excludeRaw,
 				OptIn:         optInRaw,
 				ReducedCIMode: reducedCIMode,
+				RunnerJSON:    runnerJSON,
 			})
 			if err != nil {
 				return fmt.Errorf("compute platform matrices: %w", err)
@@ -104,6 +105,7 @@ func newMatrixCommand() *cobra.Command {
 	cmd.Flags().StringVar(&archsRaw, "arch", "", "Comma-separated list of arch tokens (amd64;arm64)")
 	cmd.Flags().StringVar(&excludeRaw, "exclude", "", "Comma-separated list of duckdb_arch values to exclude")
 	cmd.Flags().StringVar(&optInRaw, "opt-in", "", "Comma-separated list of opt-in duckdb_arch values")
+	cmd.Flags().StringVar(&runnerJSON, "runners", "{}", "JSON object with runner overrides keyed by selector or duckdb_arch")
 	cmd.Flags().StringVar(&reducedCIModeRaw, "reduced-ci-mode", "", "Reduced CI mode: auto|enabled|disabled")
 	cmd.Flags().StringVar(&outPath, "out", "", "Path to write GitHub output lines")
 	cmd.Flags().BoolVar(&deployOnly, "deploy", false, "Emit only deploy_matrix output with duckdb_arch values")

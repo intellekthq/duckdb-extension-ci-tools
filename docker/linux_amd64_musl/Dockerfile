@@ -6,7 +6,7 @@ FROM alpine:3.22
 
 # Setup the basic necessities
 RUN apk update -q
-RUN apk add -qq ccache cmake git clang19 gcc libssl3 wget bash zip gettext unzip build-base curl make libffi-dev zlib openssh autoconf linux-headers libunwind-dev jq libtool
+RUN apk add -qq ccache cmake git clang19 gcc libssl3 wget bash zip gettext unzip build-base curl make libffi-dev zlib openssh autoconf linux-headers libunwind-dev jq libtool tzdata-utils
 RUN curl --no-progress-meter -LO https://dl-cdn.alpinelinux.org/alpine/v3.21/community/x86_64/aws-cli-2.22.10-r0.apk
 RUN apk add --allow-untrusted aws-cli-2.22.10-r0.apk
 RUN curl --no-progress-meter -LO https://dl-cdn.alpinelinux.org/alpine/v3.23/community/x86_64/ninja-build-1.13.2-r0.apk
@@ -72,7 +72,7 @@ RUN case "$extra_toolchains" in \
 esac
 
 # Configure Rust
-RUN case "$extra_toolchains" in \
+RUN set -o pipefail && case "$extra_toolchains" in \
   *\;rust\;*) \
     curl https://sh.rustup.rs -sSf | bash -s -- -y \
   ;; \
